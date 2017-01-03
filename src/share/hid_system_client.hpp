@@ -49,11 +49,13 @@ public:
     }
   }
 
-  void post_modifier_flags(krbn::key_code key_code, IOOptionBits flags, krbn::keyboard_type keyboard_type) {
+  void post_modifier_flags(krbn::key_code key_code, IOOptionBits flags) {
+      
+     logger::get_logger().info("function post_modifier_flags code = {0}", static_cast<uint32_t>(key_code));
+
     if (auto key = krbn::types::get_hid_system_key(key_code)) {
       NXEventData event{};
       event.key.keyCode = *key;
-      event.key.keyboardType = static_cast<uint32_t>(keyboard_type);
 
       IOGPoint loc{};
       post_event(NX_FLAGSCHANGED, loc, &event, kNXEventDataVersion, flags, kIOHIDSetGlobalEventFlags);
@@ -64,21 +66,24 @@ public:
     logger_.warn("key_code:{1:#x} is unsupported key @ {0}", __PRETTY_FUNCTION__, static_cast<uint32_t>(key_code));
   }
 
-  void post_key(krbn::key_code key_code, krbn::event_type event_type, IOOptionBits flags, krbn::keyboard_type keyboard_type, bool repeat) {
+  void post_key(krbn::key_code key_code, krbn::event_type event_type, IOOptionBits flags, bool repeat) {
+     logger::get_logger().info("function post_key origin key code = {0} flags = {1}", static_cast<uint32_t>(key_code), static_cast<uint32_t>(flags));
     if (auto key = krbn::types::get_hid_system_aux_control_button(key_code)) {
       post_aux_control_button(*key, event_type, flags, repeat);
       return;
     }
 
     if (auto key = krbn::types::get_hid_system_key(key_code)) {
-      post_key(*key, event_type, flags, keyboard_type, repeat);
+     //   logger::get_logger().info("function post_key code = {0} , flags = ", static_cast<uint32_t>(key_code), static_cast<uint32_t>(flags));
+
+      post_key(*key, event_type, flags, repeat);
       return;
     }
 
     logger_.warn("key_code:{1:#x} is unsupported key @ {0}", __PRETTY_FUNCTION__, static_cast<uint32_t>(key_code));
   }
 
-  void post_key(uint8_t key_code, krbn::event_type event_type, IOOptionBits flags, krbn::keyboard_type keyboard_type, bool repeat) {
+  void post_key(uint8_t key_code, krbn::event_type event_type, IOOptionBits flags, bool repeat) {
     NXEventData event{};
     event.key.origCharCode = 0;
     event.key.repeat = repeat;
@@ -86,7 +91,7 @@ public:
     event.key.charCode = 0;
     event.key.keyCode = key_code;
     event.key.origCharSet = NX_ASCIISET;
-    event.key.keyboardType = static_cast<uint32_t>(keyboard_type);
+    event.key.keyboardType = 0;
 
     IOGPoint loc{};
     post_event(event_type == krbn::event_type::key_down ? NX_KEYDOWN : NX_KEYUP,
@@ -115,6 +120,7 @@ public:
   }
 
 private:
+ //  connect device
   void matched_callback(io_iterator_t iterator) {
     while (auto service = IOIteratorNext(iterator)) {
       std::lock_guard<std::mutex> guard(connect_mutex_);
